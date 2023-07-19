@@ -1,19 +1,48 @@
 ```{r}
+#Import dates and merge main Dataframes
 library(dplyr)
 library(magrittr)
 
 umsatzdaten_link <- read.csv("https://raw.githubusercontent.com/Rodolfosoriano/Opencampus12A/main/umsatzdaten_gekuerzt.csv")
 kiwo_link <- read.csv("https://raw.githubusercontent.com/Rodolfosoriano/Opencampus12A/main/kiwo.csv")
 wetter_link <- read.csv("https://raw.githubusercontent.com/Rodolfosoriano/Opencampus12A/main/wetter.csv")
-
+feiertagen <- read.csv("https://raw.githubusercontent.com/Rodolfosoriano/Opencampus12A/main/feiertagen.csv", sep = ",")
 
 zusamengefuehrt <- umsatzdaten_link %>%
   left_join(wetter_link, by = "Datum") %>%
-    left_join(kiwo_link, by = "Datum")
+    left_join(kiwo_link, by = "Datum") %>%
+      left_join(feiertagen, by = "Datum")
+
+```
 
 
-search()
+```{r}
+#zusätliche Variablen
 
-print(zusamengefuehrt)
+library(lubridate)
+
+#1) Feiertagen, wir betrachten nur die Feiertagen von SH, wenn unserer Bäckerei geöffnet war, das war schon oben als Feiertagen gemacht
+
+#2)7 days lag
+
+zusamengefuehrt <- zusamengefuehrt %>% arrange(Datum, Warengruppe)
+
+zusamengefuehrt <- zusamengefuehrt %>% group_by(Warengruppe) %>%
+  arrange(Datum) %>%
+    mutate(umsatz_7_tagen = lag(Umsatz,7))
+    
+#3) 1 Jahr lag
+
+zusamengefuehrt <- zusamengefuehrt %>% arrange(Datum, Warengruppe)
+
+zusamengefuehrt <- zusamengefuehrt %>% group_by(Warengruppe) %>%
+  arrange(Datum) %>%
+  mutate(umsatz_1_Jahr = if_else(leap_year(Datum),lag(Umsatz,366),lag(Umsatz,365)))
+
+
+
+
+str(zusamengefuehrt)
+
 ```
 
