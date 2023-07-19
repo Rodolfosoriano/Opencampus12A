@@ -1,0 +1,16 @@
+```{r}
+library(dplyr)
+
+umsatzdaten_link <- read.csv("https://raw.githubusercontent.com/Rodolfosoriano/Opencampus12A/main/kiwo.csv")
+kiwo_link <- read.csv("https://raw.githubusercontent.com/Rodolfosoriano/Opencampus12A/main/umsatzdaten_gekuerzt.csv")
+wetter_link <- read.csv("https://raw.githubusercontent.com/Rodolfosoriano/Opencampus12A/main/wetter.csv")
+
+zusamengefuehrt <- umsatzdaten_link %>%
+  left_join(wetter_link, by = "Datum") %>%
+    left_join(kiwo_link, by = "Datum")
+  
+  
+
+print(zusamengefuehrt)
+```
+
