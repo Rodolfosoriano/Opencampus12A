@@ -1,12 +1,15 @@
 ```{r}
 #Import dates and merge main Dataframes
 library(dplyr)
-library(magrittr)
+
 
 umsatzdaten_link <- read.csv("https://raw.githubusercontent.com/Rodolfosoriano/Opencampus12A/main/umsatzdaten_gekuerzt.csv")
 kiwo_link <- read.csv("https://raw.githubusercontent.com/Rodolfosoriano/Opencampus12A/main/kiwo.csv")
 wetter_link <- read.csv("https://raw.githubusercontent.com/Rodolfosoriano/Opencampus12A/main/wetter.csv")
 feiertagen <- read.csv("https://raw.githubusercontent.com/Rodolfosoriano/Opencampus12A/main/feiertagen.csv", sep = ",")
+
+feiertagen$Datum <- as.Date(feiertagen$Datum, format = "%d.%m.%Y")
+feiertagen$Datum <- as.character(feiertagen$Datum)
 
 zusamengefuehrt <- umsatzdaten_link %>%
   left_join(wetter_link, by = "Datum") %>%
@@ -40,9 +43,115 @@ zusamengefuehrt <- zusamengefuehrt %>% group_by(Warengruppe) %>%
   mutate(umsatz_1_Jahr = if_else(leap_year(Datum),lag(Umsatz,366),lag(Umsatz,365)))
 
 
+```
 
 
-str(zusamengefuehrt)
+#### Importieren des Datensatzes
+```{r}
+#Das hier ist eigentlich nicht notwendig, weil wir schon ein Dataframe haben
+#library(readr)
+#data <- read_csv("https://raw.githubusercontent.com/opencampus-sh/einfuehrung-in-data-science-und-ml/main/house_pricing_data/house_pricing_train.csv")
+```
+
+```{r}
+# Load the dplyr library
+library(dplyr)
+
+# Set a random seed for reproducibility
+set.seed(42)
+
+# Shuffle the data
+data_shuffled <- zusamengefuehrt %>% sample_frac(1)
+
+# Calculate the number of rows for each dataset
+n_total <- nrow(data_shuffled)
+n_train <- floor(0.7 * n_total)
+n_validation <- floor(0.20 * (n_total - n_train))
+
+# Check the number of rows in train_data
+# Randomly split the data into training, validation, and test datasets
+train_indices <- sample(1:n_total, n_train)
+validation_indices <- sample(setdiff(1:n_total, train_indices), n_validation)
+test_indices <- setdiff(1:n_total, c(train_indices, validation_indices))
+
+#This comes from Chat_GPT and it seems to work
+train_data <- data_shuffled[train_indices, ]
+validation_data <- data_shuffled[validation_indices, ]
+test_data <- data_shuffled[test_indices, ]
+
+
+# Check the dimensions of the datasets
+cat("Training dataset dimensions:", dim(train_data), "\n")
+cat("Validation dataset dimensions:", dim(validation_data), "\n")
+cat("Test dataset dimensions:", dim(test_data), "\n")
+
 
 ```
 
+
+#### Teilen des Datensatzes in Trainings- Validierungs- und Testdatensatz
+```{r}
+#This comes directly from steffan
+# Load the dplyr library
+library(dplyr)
+
+# Set a random seed for reproducibility
+set.seed(42)
+# Shuffle the data
+data_shuffled <- zusamengefuehrt %>% sample_frac(1)
+
+# Calculate the number of rows for each dataset
+n_total <- nrow(zusamengefuehrt)
+n_train <- floor(0.7 * n_total)
+n_validation <- floor(0.20 * n_total)
+
+# Split the data into training, validation, and test datasets
+train_data <- data_shuffled %>% slice(1:n_train)
+validation_data <- data_shuffled %>% slice((n_train + 1):(n_train + n_validation))
+test_data <- data_shuffled %>% slice((n_train + n_validation + 1):n_total)
+
+# Check the dimensions of the datasets
+cat("Training dataset dimensions:", dim(train_data), "\n")
+cat("Validation dataset dimensions:", dim(validation_data), "\n")
+cat("Test dataset dimensions:", dim(test_data), "\n")
+
+```
+
+
+### Beispiel einer einfachen linearen Regression
+```{r}
+train_data$feiertag <- ifelse(is.na(train_data$feiertag), 0, train_data$feiertag)
+train_data$KielerWoche <- ifelse(is.na(train_data$KielerWoche), 0, train_data$KielerWoche)
+
+has_1_value <- any(train_data$feiertag == 1)
+
+  mod <- lm(Umsatz ~ umsatz_7_tagen + umsatz_1_Jahr + feiertag + Temperatur + KielerWoche, train_data)
+  summary(mod)
+
+```
+
+### Nutzung des resultierenden Modells für eine Vohersage
+```{r}
+# Make predictions using the test data
+predicted_values <- predict(mod, newdata = validation_data)
+print(predicted_values)
+
+# Compare the predicted values with the actual values
+comparison <- data.frame(Actual = validation_data$Umsatz, Predicted = predicted_values)
+
+# Calculate the mean squared error (RMSE)
+rmse <- sqrt(mean((comparison$Actual - comparison$Predicted)^2))
+
+# Display the comparison and RMSE
+head(comparison)
+cat("Root Mean Squared Error (RMSE):", rmse, "\n")
+
+```
+
+
+
+### Beispiel einer linearen Regression mit Regularisierung
+```{r}
+library(glmnet)
+mod <- glmnet(as.matrix(train_data[c('sqft_lot15', 'condition')]), train_data$price)
+mod
