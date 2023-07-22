@@ -24,6 +24,7 @@ zusamengefuehrt <- umsatzdaten_link %>%
 
 library(lubridate)
 
+
 #1) Feiertagen, wir betrachten nur die Feiertagen von SH, wenn unserer Bäckerei geöffnet war, das war schon oben als Feiertagen gemacht
 
 #2)7 days lag
@@ -41,6 +42,40 @@ zusamengefuehrt <- zusamengefuehrt %>% arrange(Datum, Warengruppe)
 zusamengefuehrt <- zusamengefuehrt %>% group_by(Warengruppe) %>%
   arrange(Datum) %>%
   mutate(umsatz_1_Jahr = if_else(leap_year(Datum),lag(Umsatz,366),lag(Umsatz,365)))
+
+
+```
+
+
+```{r}
+library(tidyr)
+library(dplyr)
+#Hier corrigieren wir was fir frueher NA hatten, anstatt haben wir jetzt 0
+
+zusamengefuehrt <- zusamengefuehrt %>%
+  mutate(KielerWoche = replace_na(KielerWoche, 0))
+
+zusamengefuehrt <- zusamengefuehrt %>%
+  mutate(feiertag = replace_na(feiertag, 0))
+
+
+#Hier bearbeiten wir die variablen mit Lag Check this and continue from here
+missing_lagged_var <- zusamengefuehrt %>%
+  filter(is.na(lagged_var_1))
+
+# Step 2: Fit a regression model using the lagged value of lagged_var_1 as a predictor
+model_lagged_var_1 <- lm(lagged_var_1 ~ lag(lagged_var_1, 1), data = zusamengefuehrt)
+
+# Step 3: Predict missing values using the fitted model
+missing_lagged_var$lagged_var_1 <- predict(model_lagged_var_1, newdata = missing_lagged_var)
+
+# Merge the data back into the original data frame
+zusamengefuehrt <- bind_rows(zusamengefuehrt %>% filter(!is.na(lagged_var_1)), missing_lagged_var)
+
+# Arrange the data frame by 'Datum' and 'Warengruppe'
+zusamengefuehrt <- zusamengefuehrt %>%
+  arrange(Datum, Warengruppe)
+
 
 
 ```
