@@ -50,6 +50,7 @@ zusamengefuehrt <- zusamengefuehrt %>% group_by(Warengruppe) %>%
 ```{r}
 library(tidyr)
 library(dplyr)
+library(lubridate)
 #Hier corrigieren wir was fir frueher NA hatten, anstatt haben wir jetzt 0
 
 zusamengefuehrt <- zusamengefuehrt %>%
@@ -59,23 +60,129 @@ zusamengefuehrt <- zusamengefuehrt %>%
   mutate(feiertag = replace_na(feiertag, 0))
 
 
-#Hier bearbeiten wir die variablen mit Lag Check this and continue from here
-missing_lagged_var <- zusamengefuehrt %>%
-  filter(is.na(lagged_var_1))
-
-# Step 2: Fit a regression model using the lagged value of lagged_var_1 as a predictor
-model_lagged_var_1 <- lm(lagged_var_1 ~ lag(lagged_var_1, 1), data = zusamengefuehrt)
-
-# Step 3: Predict missing values using the fitted model
-missing_lagged_var$lagged_var_1 <- predict(model_lagged_var_1, newdata = missing_lagged_var)
-
-# Merge the data back into the original data frame
-zusamengefuehrt <- bind_rows(zusamengefuehrt %>% filter(!is.na(lagged_var_1)), missing_lagged_var)
-
-# Arrange the data frame by 'Datum' and 'Warengruppe'
+#umsatz_7_tagen
+# Step 1: Sort the data frame by 'Datum' and 'Warengruppe'
 zusamengefuehrt <- zusamengefuehrt %>%
   arrange(Datum, Warengruppe)
 
+# Step 2: Fill missing values in umsatz_7_tagen using the LOCF method
+zusamengefuehrt <- zusamengefuehrt %>%
+  group_by(Warengruppe) %>%
+  fill(umsatz_7_tagen, .direction = "up")
+
+# Arrange the data frame again by 'Datum' and 'Warengruppe'
+zusamengefuehrt <- zusamengefuehrt %>%
+  arrange(Datum, Warengruppe)
+
+
+```
+
+```{r}
+# umsatz_1_Jahr is 'umsatz_1_Jahr'
+
+# Step 1: Sort the data frame by 'Datum' and 'Warengruppe'
+zusamengefuehrt <- zusamengefuehrt %>%
+  arrange(Datum, Warengruppe)
+
+# Step 2: Fill missing values in umsatz_7_tagen using the LOCF method
+zusamengefuehrt <- zusamengefuehrt %>%
+  group_by(Warengruppe) %>%
+  fill(umsatz_1_Jahr, .direction = "up")
+
+# Arrange the data frame again by 'Datum' and 'Warengruppe'
+zusamengefuehrt <- zusamengefuehrt %>%
+  arrange(Datum, Warengruppe)
+
+#Wir haben schon getestet, dass Wettercode nicht signifikant ist, deswegen schmeißen die Variable weg.
+zusamengefuehrt <- zusamengefuehrt %>%
+  select(-Wettercode)
+```
+
+
+
+```{r}
+# Load the necessary packages
+library(dplyr)
+
+# Assuming your data frame is named 'zusamengefuehrt'
+# Replace 'zusamengefuehrt' with the actual name of your data frame
+
+# Variables with missing values that you want to impute
+vars_to_impute <- c("Bewoelkung", "Temperatur", "Windgeschwindigkeit", "umsatz_1_Jahr")  # Corrected column name
+
+# Check if the columns exist in the data frame
+missing_columns <- setdiff(vars_to_impute, colnames(zusamengefuehrt))
+if (length(missing_columns) > 0) {
+  stop(paste("Columns not found in the data frame:", paste(missing_columns, collapse = ", ")))
+}
+
+# Function to impute missing values with the mean of the surrounding values
+impute_missing_values <- function(x) {
+  for (i in 1:length(x)) {
+    if (is.na(x[i])) {
+      before <- ifelse(i >= 3, x[i - 2], NA)  # Two values before
+      after <- ifelse(i <= length(x) - 2, x[i + 2], NA)  # Two values after
+      surrounding_values <- c(before, after, x[i + 1], x[i - 1])
+      x[i] <- mean(surrounding_values, na.rm = TRUE)
+    }
+  }
+  return(x)
+}
+
+# Apply the impute_missing_values function to the selected variables
+zusamengefuehrt[vars_to_impute] <- lapply(zusamengefuehrt[vars_to_impute], impute_missing_values)
+
+# Now, you can proceed with your previous code for modeling and prediction
+# ...
+
+# Make predictions using the test data
+predicted_values <- predict(mod, newdata = validation_data)
+
+# Compare the predicted values with the actual values
+comparison <- data.frame(Actual = validation_data$Umsatz, Predicted = predicted_values)
+
+# Calculate the mean squared error (RMSE)
+rmse <- sqrt(mean((comparison$Actual - comparison$Predicted)^2))
+
+# Display the comparison and RMSE
+head(comparison)
+cat("Root Mean Squared Error (RMSE):", rmse, "\n")
+
+```
+
+```{r}
+# Assuming your data frame is named 'zusamengefuehrt'
+# Replace 'zusamengefuehrt' with the actual name of your data frame
+
+# Count the number of NA values in each column
+na_counts <- colSums(is.na(zusamengefuehrt))
+
+# Display the number of NA values in each column
+print(na_counts)
+
+```
+
+
+
+```{r}
+#Regression für variablen: Bewoelkung, Temperatur, Windgeschwindigkeit, und Umsatz_1_Jahr
+
+# Load the necessary packages
+library(dplyr)
+library(zoo)
+
+# Assuming your data frame is named 'zusamengefuehrt'
+# Replace NA values in Bewoelkung with linear interpolation
+zusamengefuehrt$Bewoelkung <- zoo::na.approx(zusamengefuehrt$Bewoelkung)
+
+# Replace NA values in Temperatur with linear interpolation
+zusamengefuehrt$Temperatur <- zoo::na.approx(zusamengefuehrt$Temperatur)
+
+# Replace NA values in Windgeschwindigkeit with linear interpolation
+zusamengefuehrt$Windgeschwindigkeit <- zoo::na.approx(zusamengefuehrt$Windgeschwindigkeit)
+
+# Replace NA values in Umsatz_1_Jahr with linear interpolation
+zusamengefuehrt$Umsatz_1_Jahr <- zoo::na.approx(zusamengefuehrt$Umsatz_1_Jahr)
 
 
 ```
@@ -155,10 +262,13 @@ cat("Test dataset dimensions:", dim(test_data), "\n")
 
 ### Beispiel einer einfachen linearen Regression
 ```{r}
-train_data$feiertag <- ifelse(is.na(train_data$feiertag), 0, train_data$feiertag)
-train_data$KielerWoche <- ifelse(is.na(train_data$KielerWoche), 0, train_data$KielerWoche)
+na_matrix <- is.na(zusamengefuehrt)
 
-has_1_value <- any(train_data$feiertag == 1)
+# Use colSums() to count the number of NA values in each column
+na_counts <- colSums(na_matrix)
+
+# Print the result
+print(na_counts)
 
   mod <- lm(Umsatz ~ umsatz_7_tagen + umsatz_1_Jahr + feiertag + Temperatur + KielerWoche, train_data)
   summary(mod)
