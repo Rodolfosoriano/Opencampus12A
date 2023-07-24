@@ -173,10 +173,6 @@ cat("Validation dataset dimensions:", dim(validation_data), "\n")
 cat("Test dataset dimensions:", dim(test_data), "\n")
 ```
 
-
-
-
-
 # Einfachen linearen Regression
 ```{r}
 na_matrix <- is.na(zusamengefuehrt)
@@ -210,6 +206,12 @@ cat("Root Mean Squared Error (RMSE):", rmse, "\n")
 
 ### Beispiel einer linearen Regression mit Regularisierung
 ```{r}
+
+lm(Umsatz ~ umsatz_7_tagen + umsatz_1_Jahr + feiertag + Temperatur + KielerWoche, train_data)
+  summary(mod)
+
 library(glmnet)
-mod <- glmnet(as.matrix(train_data[c('sqft_lot15', 'condition')]), train_data$price)
+mod <- glmnet(as.matrix(train_data[c('umsatz_7_tagen', 'umsatz_1_Jahr','feiertag','Temperatur','KielerWoche')]), train_data$Umsatz)
 mod
+
+```
