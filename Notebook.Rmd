@@ -25,9 +25,9 @@ zusamengefuehrt <- umsatzdaten_link %>%
 library(lubridate)
 
 
-#1) Feiertagen, wir betrachten nur die Feiertagen von SH, wenn unserer Bäckerei geöffnet war, das war schon oben als Feiertagen gemacht
+#1) Variabel: Feiertagen, wir betrachten nur die Feiertagen von SH, wenn unserer Bäckerei geöffnet war, das war schon oben als Feiertagen gemacht. Aus diesem Grund ist die Variabel ziemlich Stark und Signifikant, fruehr hatten wir betrachten alle die Feiertagen betrachten, und die Variabel war nicht Signifikant.
 
-#2)7 days lag
+#2) Variabel: Umsatz_7_tagen
 
 zusamengefuehrt <- zusamengefuehrt %>% arrange(Datum, Warengruppe)
 
@@ -35,7 +35,7 @@ zusamengefuehrt <- zusamengefuehrt %>% group_by(Warengruppe) %>%
   arrange(Datum) %>%
     mutate(umsatz_7_tagen = lag(Umsatz,7))
     
-#3) 1 Jahr lag
+#3) Variabel: Umsatz_1_Jahr, hier habe ich zusaetzlich leap_year benutzt fuer die Fallen, wenn Das Jahr 366 hat.
 
 zusamengefuehrt <- zusamengefuehrt %>% arrange(Datum, Warengruppe)
 
@@ -51,7 +51,7 @@ zusamengefuehrt <- zusamengefuehrt %>% group_by(Warengruppe) %>%
 library(tidyr)
 library(dplyr)
 library(lubridate)
-#Hier corrigieren wir was fir frueher NA hatten, anstatt haben wir jetzt 0
+#Hier corrigieren wir die NA Werte fuer die Variablen KielerWoche und Feiertag, anstatt haben wir jetzt 0, das heisst, dass jetzt haben wir richtigen Dummy variablen.
 
 zusamengefuehrt <- zusamengefuehrt %>%
   mutate(KielerWoche = replace_na(KielerWoche, 0))
@@ -60,36 +60,15 @@ zusamengefuehrt <- zusamengefuehrt %>%
   mutate(feiertag = replace_na(feiertag, 0))
 
 
-#umsatz_7_tagen
-# Step 1: Sort the data frame by 'Datum' and 'Warengruppe'
+# Korrektur fuer Variabel umsatz_7_Tagen
 zusamengefuehrt <- zusamengefuehrt %>%
   arrange(Datum, Warengruppe)
 
-# Step 2: Fill missing values in umsatz_7_tagen using the LOCF method
+
 zusamengefuehrt <- zusamengefuehrt %>%
   group_by(Warengruppe) %>%
   fill(umsatz_7_tagen, .direction = "up")
 
-# Arrange the data frame again by 'Datum' and 'Warengruppe'
-zusamengefuehrt <- zusamengefuehrt %>%
-  arrange(Datum, Warengruppe)
-
-
-```
-
-```{r}
-# umsatz_1_Jahr is 'umsatz_1_Jahr'
-
-# Step 1: Sort the data frame by 'Datum' and 'Warengruppe'
-zusamengefuehrt <- zusamengefuehrt %>%
-  arrange(Datum, Warengruppe)
-
-# Step 2: Fill missing values in umsatz_7_tagen using the LOCF method
-zusamengefuehrt <- zusamengefuehrt %>%
-  group_by(Warengruppe) %>%
-  fill(umsatz_1_Jahr, .direction = "up")
-
-# Arrange the data frame again by 'Datum' and 'Warengruppe'
 zusamengefuehrt <- zusamengefuehrt %>%
   arrange(Datum, Warengruppe)
 
@@ -98,25 +77,36 @@ zusamengefuehrt <- zusamengefuehrt %>%
   select(-Wettercode)
 ```
 
+```{r}
+# umsatz_1_Jahr is 'umsatz_1_Jahr'
+
+zusamengefuehrt <- zusamengefuehrt %>%
+  arrange(Datum, Warengruppe)
+
+zusamengefuehrt <- zusamengefuehrt %>%
+  group_by(Warengruppe) %>%
+  fill(umsatz_1_Jahr, .direction = "up")
+
+zusamengefuehrt <- zusamengefuehrt %>%
+  arrange(Datum, Warengruppe)
+
+
+```
+
 
 
 ```{r}
-# Load the necessary packages
 library(dplyr)
 
-# Assuming your data frame is named 'zusamengefuehrt'
-# Replace 'zusamengefuehrt' with the actual name of your data frame
+# hier hatten wir immer noch ein Paar fehlende Werte, die hie korrigiert sind, duch eine Regression.
 
-# Variables with missing values that you want to impute
 vars_to_impute <- c("Bewoelkung", "Temperatur", "Windgeschwindigkeit", "umsatz_1_Jahr")  # Corrected column name
-
-# Check if the columns exist in the data frame
+# wo hatten wir Fehlende Werte
 missing_columns <- setdiff(vars_to_impute, colnames(zusamengefuehrt))
 if (length(missing_columns) > 0) {
   stop(paste("Columns not found in the data frame:", paste(missing_columns, collapse = ", ")))
 }
 
-# Function to impute missing values with the mean of the surrounding values
 impute_missing_values <- function(x) {
   for (i in 1:length(x)) {
     if (is.na(x[i])) {
@@ -129,74 +119,29 @@ impute_missing_values <- function(x) {
   return(x)
 }
 
-# Apply the impute_missing_values function to the selected variables
 zusamengefuehrt[vars_to_impute] <- lapply(zusamengefuehrt[vars_to_impute], impute_missing_values)
-
-# Now, you can proceed with your previous code for modeling and prediction
 # ...
 
-# Make predictions using the test data
 predicted_values <- predict(mod, newdata = validation_data)
 
-# Compare the predicted values with the actual values
 comparison <- data.frame(Actual = validation_data$Umsatz, Predicted = predicted_values)
 
-# Calculate the mean squared error (RMSE)
+# squared error (RMSE)
 rmse <- sqrt(mean((comparison$Actual - comparison$Predicted)^2))
 
-# Display the comparison and RMSE
 head(comparison)
 cat("Root Mean Squared Error (RMSE):", rmse, "\n")
-
 ```
 
 ```{r}
-# Assuming your data frame is named 'zusamengefuehrt'
-# Replace 'zusamengefuehrt' with the actual name of your data frame
+# Ueberpruefung, ob wir immer noch NA Werten haben.
 
-# Count the number of NA values in each column
 na_counts <- colSums(is.na(zusamengefuehrt))
-
-# Display the number of NA values in each column
 print(na_counts)
-
-```
-
-
-
-```{r}
-#Regression für variablen: Bewoelkung, Temperatur, Windgeschwindigkeit, und Umsatz_1_Jahr
-
-# Load the necessary packages
-library(dplyr)
-library(zoo)
-
-# Assuming your data frame is named 'zusamengefuehrt'
-# Replace NA values in Bewoelkung with linear interpolation
-zusamengefuehrt$Bewoelkung <- zoo::na.approx(zusamengefuehrt$Bewoelkung)
-
-# Replace NA values in Temperatur with linear interpolation
-zusamengefuehrt$Temperatur <- zoo::na.approx(zusamengefuehrt$Temperatur)
-
-# Replace NA values in Windgeschwindigkeit with linear interpolation
-zusamengefuehrt$Windgeschwindigkeit <- zoo::na.approx(zusamengefuehrt$Windgeschwindigkeit)
-
-# Replace NA values in Umsatz_1_Jahr with linear interpolation
-zusamengefuehrt$Umsatz_1_Jahr <- zoo::na.approx(zusamengefuehrt$Umsatz_1_Jahr)
-
-
-```
-
-
-#### Importieren des Datensatzes
-```{r}
-#Das hier ist eigentlich nicht notwendig, weil wir schon ein Dataframe haben
-#library(readr)
-#data <- read_csv("https://raw.githubusercontent.com/opencampus-sh/einfuehrung-in-data-science-und-ml/main/house_pricing_data/house_pricing_train.csv")
 ```
 
 ```{r}
-# Load the dplyr library
+# Verteilung von unseren Daten
 library(dplyr)
 
 # Set a random seed for reproducibility
@@ -226,44 +171,15 @@ test_data <- data_shuffled[test_indices, ]
 cat("Training dataset dimensions:", dim(train_data), "\n")
 cat("Validation dataset dimensions:", dim(validation_data), "\n")
 cat("Test dataset dimensions:", dim(test_data), "\n")
-
-
 ```
 
 
-#### Teilen des Datensatzes in Trainings- Validierungs- und Testdatensatz
-```{r}
-#This comes directly from steffan
-# Load the dplyr library
-library(dplyr)
-
-# Set a random seed for reproducibility
-set.seed(42)
-# Shuffle the data
-data_shuffled <- zusamengefuehrt %>% sample_frac(1)
-
-# Calculate the number of rows for each dataset
-n_total <- nrow(zusamengefuehrt)
-n_train <- floor(0.7 * n_total)
-n_validation <- floor(0.20 * n_total)
-
-# Split the data into training, validation, and test datasets
-train_data <- data_shuffled %>% slice(1:n_train)
-validation_data <- data_shuffled %>% slice((n_train + 1):(n_train + n_validation))
-test_data <- data_shuffled %>% slice((n_train + n_validation + 1):n_total)
-
-# Check the dimensions of the datasets
-cat("Training dataset dimensions:", dim(train_data), "\n")
-cat("Validation dataset dimensions:", dim(validation_data), "\n")
-cat("Test dataset dimensions:", dim(test_data), "\n")
-
-```
 
 
-### Beispiel einer einfachen linearen Regression
+
+# Einfachen linearen Regression
 ```{r}
 na_matrix <- is.na(zusamengefuehrt)
-
 # Use colSums() to count the number of NA values in each column
 na_counts <- colSums(na_matrix)
 
@@ -272,7 +188,6 @@ print(na_counts)
 
   mod <- lm(Umsatz ~ umsatz_7_tagen + umsatz_1_Jahr + feiertag + Temperatur + KielerWoche, train_data)
   summary(mod)
-
 ```
 
 ### Nutzung des resultierenden Modells für eine Vohersage
@@ -292,8 +207,6 @@ head(comparison)
 cat("Root Mean Squared Error (RMSE):", rmse, "\n")
 
 ```
-
-
 
 ### Beispiel einer linearen Regression mit Regularisierung
 ```{r}
